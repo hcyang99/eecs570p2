@@ -52,11 +52,16 @@ CFLAGS = -Wno-write-strings -m32 -fpermissive -std=c++98 -O3
 #OFLAGS = -O3
 
 # rules for compiling
+# %: %.m
+# 	mu $@.m 
+# 	${CXX} ${CFLAGS} ${OFLAGS} -o $@.bin $@.C -I${INCLUDEPATH} -lm
+# 	./$@.bin > $@.out
+
 %: %.m
 	mu $@.m 
-	${CXX} ${CFLAGS} ${OFLAGS} -o $@.out $@.C -I${INCLUDEPATH} -lm
-	./$@.out -td | ./trim.py > log.txt
+	${CXX} ${CFLAGS} ${OFLAGS} -o $@.bin $@.C -I${INCLUDEPATH} -lm
+	./$@.bin > $@.out
 
 clean:
-	rm -f *.out *.C log.txt
+	rm -f *.out *.C log.txt *.bin
 
