@@ -162,7 +162,7 @@ End;
 
 Function CountMSHR() : 0..ProcCount;
 Begin
-  return CountMSHR();
+  return MultiSetCount(i:HomeNode.mshr, true);
 End;
 
 Function CountSharers() : 0..ProcCount;
@@ -349,11 +349,7 @@ Begin
       Send(NAck, msg.src, HomeType, VC2, UNDEFINED, UNDEFINED);
 
     case PutM:
-      assert (msg.src = HomeNode.owner) "Writeback from non-owner";
-      HomeNode.state := H_Invalid;
-      HomeNode.val := msg.val;
-      Send(PutMAck, msg.src, HomeType, VC2, UNDEFINED, UNDEFINED);
-      undefine HomeNode.owner;
+      Send(NAck, msg.src, HomeType, VC2, UNDEFINED, UNDEFINED);
 
     else
       ErrorUnhandledMsg(msg, HomeType);
@@ -390,6 +386,7 @@ Begin
     case GetSAck:
       undefine HomeNode.owner;
       HomeNode.state := H_Shared;
+      HomeNode.val := msg.val;
     
     case GetS:
       Send(NAck, msg.src, HomeType, VC2, UNDEFINED, UNDEFINED);
@@ -398,11 +395,13 @@ Begin
       Send(NAck, msg.src, HomeType, VC2, UNDEFINED, UNDEFINED);
     
     case PutM:
-      assert (msg.src = HomeNode.owner) "Writeback from non-owner";
-      HomeNode.state := H_Invalid;
-      HomeNode.val := msg.val;
-      Send(PutMAck, msg.src, HomeType, VC2, UNDEFINED, UNDEFINED);
-      undefine HomeNode.owner;
+      Send(NAck, msg.src, HomeType, VC2, UNDEFINED, UNDEFINED);
+
+    case PutS:
+      Send(NAck, msg.src, HomeType, VC2, UNDEFINED, UNDEFINED);
+    
+    case Upgrade:
+      Send(NAck, msg.src, HomeType, VC2, UNDEFINED, UNDEFINED);
     
     else
       ErrorUnhandledMsg(msg, HomeType);
@@ -440,6 +439,9 @@ Begin
       endif;
 
     case PutM:
+      Send(NAck, msg.src, HomeType, VC2, UNDEFINED, UNDEFINED);
+
+    case Upgrade:
       Send(NAck, msg.src, HomeType, VC2, UNDEFINED, UNDEFINED);
 
     else
@@ -506,7 +508,6 @@ Begin
       Send(GetSAck, HomeType, p, VC2, pv, msg.reqsrc);
       ps := P_Shared;
     case Inv:
-      Send(InvAck, msg.reqsrc, p, VC2, pv, msg.reqsrc);
       Send(InvAck,HomeType, p, VC2, pv, msg.reqsrc);
       ps := P_Invalid;
       undefine pv;
