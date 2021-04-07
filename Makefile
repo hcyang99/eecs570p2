@@ -55,7 +55,6 @@ CFLAGS = -Wno-write-strings -m32 -fpermissive -std=c++98 -O3
 %: %.m
 	mu $@.m 
 	${CXX} ${CFLAGS} ${OFLAGS} -o $@.out $@.C -I${INCLUDEPATH} -lm
-	-./$@.out
 	./$@.out -td | ./trim.py > log.txt
 
 clean:

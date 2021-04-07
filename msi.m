@@ -12,7 +12,7 @@ const
   VC2: 2;
   QMax: 2;
   NumVCs: VC2 - VC0 + 1;
-  NetMax: ProcCount+1;
+  NetMax: 10;
   
 
 ----------------------------------------------------------------------
@@ -23,6 +23,7 @@ type
   Value: scalarset(ValueCount); -- arbitrary values for tracking coherence
   Home: enum { HomeType };      -- need enumeration for IsMember calls
   Node: union { Home , Proc };
+  ProcCountType: 0..ProcCount;
 
   VCType: VC0..NumVCs-1;
 
@@ -160,14 +161,27 @@ Begin
   return MultiSetCount(i:HomeNode.sharers, HomeNode.sharers[i] = n) > 0 
 End;
 
-Function CountMSHR() : 0..ProcCount;
+Function CountMSHR() : ProcCountType;
 Begin
   return MultiSetCount(i:HomeNode.mshr, true);
 End;
 
-Function CountSharers() : 0..ProcCount;
+Function CountSharers() : ProcCountType;
 Begin
   return MultiSetCount(i:HomeNode.sharers, true);
+End;
+
+Function CountModified() : ProcCountType;
+var ret: ProcCountType;
+Begin
+  ret := 0;
+  for n:Proc do
+    if Procs[n].state = P_Modified
+    then 
+      ret := ret + 1;
+    endif;
+  endfor;
+  return ret;
 End;
 
 Procedure RemoveFromSharersList(n:Node);
@@ -233,11 +247,11 @@ End;
 
 
 Procedure HomeReceive(msg:Message);
-var cnt:0..ProcCount;  -- for counting sharers
+var cnt:ProcCountType;  -- for counting sharers
 Begin
 -- Debug output may be helpful:
- put "Receiving "; put msg.mtype; put " on VC"; put msg.vc; 
- put " at home -- "; put HomeNode.state;
+--  put "Receiving "; put msg.mtype; put " on VC"; put msg.vc; 
+--  put " at home -- "; put HomeNode.state;
 
   -- The line below is not needed in Valid/Invalid protocol.  However, the 
   -- compiler barfs if we put this inside a switch, so it is useful to
@@ -428,15 +442,7 @@ Begin
       Send(NAck, msg.src, HomeType, VC2, UNDEFINED, UNDEFINED);
 
     case PutS:
-      RemoveFromMSHR(msg.src);
-      if CountMSHR() = 0
-      then
-        undefine HomeNode.mshr;
-        undefine HomeNode.sharers;
-        HomeNode.owner := HomeNode.newOwner;
-        undefine HomeNode.newOwner;
-        HomeNode.state := H_Modified;
-      endif;
+      Send(NAck, msg.src, HomeType, VC2, UNDEFINED, UNDEFINED);
 
     case PutM:
       Send(NAck, msg.src, HomeType, VC2, UNDEFINED, UNDEFINED);
@@ -468,17 +474,12 @@ Begin
       Send(NAck, msg.src, HomeType, VC2, UNDEFINED, UNDEFINED);
 
     case PutS:
-      RemoveFromMSHR(msg.src);
-      if CountMSHR() = 0
-      then
-        undefine HomeNode.mshr;
-        undefine HomeNode.sharers;
-        HomeNode.owner := HomeNode.newOwner;
-        undefine HomeNode.newOwner;
-        HomeNode.state := H_Modified;
-      endif;
+      Send(NAck, msg.src, HomeType, VC2, UNDEFINED, UNDEFINED);
 
     case PutM:
+      Send(NAck, msg.src, HomeType, VC2, UNDEFINED, UNDEFINED);
+
+    case Upgrade:
       Send(NAck, msg.src, HomeType, VC2, UNDEFINED, UNDEFINED);
 
     else
@@ -490,8 +491,8 @@ End;
 
 Procedure ProcReceive(msg:Message; p:Proc);
 Begin
- put "Receiving "; put msg.mtype; put " on VC"; put msg.vc; 
- put " at proc "; put p; put "\n";
+--  put "Receiving "; put msg.mtype; put " on VC"; put msg.vc; 
+--  put " at proc "; put p; put "\n";
 
   -- default to 'processing' message.  set to false otherwise
   msg_processed := true;
@@ -827,3 +828,9 @@ invariant "values in shared state match memory"
     ->
 			HomeNode.val = Procs[n].val
 	end;
+
+invariant "only one write permission"
+  HomeNode.state = H_Modified
+    ->
+      CountModified() <= 1;
+
