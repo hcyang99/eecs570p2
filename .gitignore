@@ -2,3 +2,5 @@
 *.C
 ._*
 .DS*
+.vscode
+log.txt

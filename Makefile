@@ -44,7 +44,7 @@ CXX = g++ -DCATCH_DIV #                   # for elaines
 #CXX = DCC #                                 # for beet
 
 # options (really OPTIONAL)
-CFLAGS = -Wno-write-strings -m32
+CFLAGS = -Wno-write-strings -m32 -fpermissive -std=c++98
 #CFLAGS = -fno-default-inline #              # for g++, only on beet and cabbage
 #CFLAGS = +d -w #                            # for DCC
 
@@ -52,6 +52,11 @@ CFLAGS = -Wno-write-strings -m32
 #OFLAGS = -O3
 
 # rules for compiling
-%: %.C
+%: %.m
+	mu $@.m 
 	${CXX} ${CFLAGS} ${OFLAGS} -o $@.out $@.C -I${INCLUDEPATH} -lm
+	./$@.out
+
+clean:
+	rm -f *.out *.C
 
