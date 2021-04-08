@@ -9,7 +9,7 @@ while True:
     if line.find('The following is the error trace for the error:') != -1:
         break
 
-print(line, file=sys.stdout)
+sys.stdout.write(line)
 while True:
     line = sys.stdin.readline()
     if not line:
