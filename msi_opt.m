@@ -76,8 +76,6 @@ type
                     HT_ES,
                     HT_EM,
                     HT_ME
-
-      							-- HT_Pending 
 									}; 														--transient states during recall
       owner: Node;
       newOwner: Node;
@@ -103,8 +101,8 @@ type
                     PT_SM,
 
                     PT_EI,
-                    PT_EM
-                    -- PT_ME
+                    PT_EM,
+                    PT_ME
                   };
       val: Value;
     End;
@@ -318,6 +316,13 @@ Begin
       HomeNode.newOwner := msg.src;
       Send(Inv, HomeNode.owner, HomeType, VC1, UNDEFINED, msg.src);
 
+    case WB:
+      assert(HomeNode.owner = msg.src)
+        "WB called from non-owner";
+      HomeNode.state := H_Exclusive;
+      HomeNode.val := msg.val;
+      Send(WBAck, HomeNode.owner, HomeType, VC2, UNDEFINED, msg.src);
+
     else
       ErrorUnhandledMsg(msg, HomeType);
 
@@ -466,6 +471,9 @@ Begin
     case PutM:
       Send(NAck, msg.src, HomeType, VC2, UNDEFINED, UNDEFINED);
 
+    case WB:
+      Send(NAck, msg.src, HomeType, VC2, UNDEFINED, UNDEFINED);
+
     else
       ErrorUnhandledMsg(msg, HomeType);
     endswitch;
@@ -517,6 +525,9 @@ Begin
     
     case Upgrade:
       Send(NAck, msg.src, HomeType, VC2, UNDEFINED, UNDEFINED);
+
+    case WB:
+      Send(NAck, msg.src, HomeType, VC2, UNDEFINED, UNDEFINED);
     
     else
       ErrorUnhandledMsg(msg, HomeType);
@@ -551,6 +562,9 @@ Begin
     case Upgrade:
       Send(NAck, msg.src, HomeType, VC2, UNDEFINED, UNDEFINED);
 
+    case WB:
+      Send(NAck, msg.src, HomeType, VC2, UNDEFINED, UNDEFINED);
+
     else
       ErrorUnhandledMsg(msg, HomeType);
     endswitch;
@@ -581,6 +595,9 @@ Begin
       Send(NAck, msg.src, HomeType, VC2, UNDEFINED, UNDEFINED);
 
     case Upgrade:
+      Send(NAck, msg.src, HomeType, VC2, UNDEFINED, UNDEFINED);
+
+    case WB:
       Send(NAck, msg.src, HomeType, VC2, UNDEFINED, UNDEFINED);
 
     else
@@ -693,6 +710,21 @@ Begin
     else 
       ErrorUnhandledMsg(msg, p);
     endswitch;
+
+  case PT_ME:
+    switch msg.mtype
+    case WBAck:
+      ps := P_Exclusive;
+    case NAck:
+      ps := P_Modified;
+    case Inv:
+      msg_processed := false;
+    case GetS:
+      msg_processed := false;
+    else 
+      ErrorUnhandledMsg(msg, p);
+    endswitch;
+      
 
   case PT_IM:
     switch msg.mtype
@@ -851,6 +883,13 @@ ruleset n:Proc Do
   ==>
     Send(GetM, HomeType, n, VC0, UNDEFINED, n);
     p.state := PT_EM;
+  endrule;
+
+  rule "Self Downgrade"
+    p.state = P_Modified
+  ==>
+    Send(WB, HomeType, n, VC0, p.val, n);
+    p.state := PT_ME;
   endrule;
 
   endalias;
